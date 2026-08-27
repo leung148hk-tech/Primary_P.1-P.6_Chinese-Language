@@ -83,18 +83,24 @@ Object.entries(navigationExpectations).forEach(([fileName, marker]) => {
 });
 
 const indexContent = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const secureAuthPath = path.join(root, 'firebase-secure-auth.js');
 expect(indexContent.includes('src="student-tools.js"'), 'index.html: 未載入 student-tools.js');
 expect(indexContent.includes('src="student-sync-status.js"'), 'index.html: 未載入 student-sync-status.js');
 expect(indexContent.includes('src="student-dialogs.js"'), 'index.html: 未載入學生頁內對話元件');
 expect(indexContent.includes('href="student-dialogs.css"'), 'index.html: 未載入學生頁內對話樣式');
-expect(indexContent.includes("await confirmStudentAction({ title: '登出並切換帳戶？'"), 'index.html: 學生登出未使用頁內確認');
-expect(indexContent.includes('notifyStudentAction('), 'index.html: 學生操作未使用頁內通知');
+expect(indexContent.includes('src="firebase-secure-auth.js"'), 'index.html: 未載入安全 Firebase 認證模組');
 expect(indexContent.includes('id="student-sync-status"'), 'index.html: 缺少學生同步狀態提示');
-expect(indexContent.includes('目前離線；進度只保存在這台裝置'), 'index.html: 缺少離線本機保存提示');
 expect(indexContent.includes('student-tools-hub') === false, 'index.html: 學生工具應由獨立模組動態建立，避免登入前顯示');
-expect(indexContent.includes('const CLOUD_SYNC_TIMEOUT_MS = 3000;'), 'index.html: 缺少學生端雲端同步等待上限');
-expect(indexContent.includes('syncProgressWithDeadline(activeProfile)'), 'index.html: 登出或恢復會話未使用具期限的同步流程');
-expect(indexContent.includes('syncProgressWithDeadline(activeUser)'), 'index.html: 手動備份或關卡切換未使用具期限的同步流程');
+expect(fs.existsSync(secureAuthPath), '找不到 firebase-secure-auth.js');
+if (fs.existsSync(secureAuthPath)) {
+  const secureAuthContent = fs.readFileSync(secureAuthPath, 'utf8');
+  expect(secureAuthContent.includes('StudentDialogs?.confirm'), '安全登入模組：學生登出未使用頁內確認');
+  expect(secureAuthContent.includes('StudentDialogs?.notify'), '安全登入模組：學生操作未使用頁內通知');
+  expect(secureAuthContent.includes('目前離線；進度只保存在這台裝置'), '安全登入模組：缺少離線本機保存提示');
+  expect(secureAuthContent.includes('const CLOUD_SYNC_TIMEOUT_MS = 3000;'), '安全登入模組：缺少學生端雲端同步等待上限');
+  expect(secureAuthContent.includes('syncProgressWithDeadline(currentProfile?.username'), '安全登入模組：登出、備份或關卡切換未使用具期限的同步流程');
+  try { execFileSync('node', ['--check', secureAuthPath], { stdio: 'pipe' }); } catch (_) { failures.push('firebase-secure-auth.js: JavaScript 語法錯誤'); }
+}
 
 const specialFeedbackExpectations = {
   'word_standard.html': ["StudentFeedback?.wrong(btnElement, '這個字沒有錯", 'StudentFeedback?.clear(btnElement)'],
