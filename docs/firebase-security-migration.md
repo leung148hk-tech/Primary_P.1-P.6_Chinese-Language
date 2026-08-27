@@ -47,11 +47,26 @@
 |---|---|---|
 | 1 | 在 Authentication → Sign-in method 啟用 **Email/Password**，保留 Anonymous 暫時啟用。 | 先讓新網站具備正式登入能力；此步不會中斷舊網站。 |
 | 2 | 在 Authentication → Users 新增管理員 Authentication 使用者：內部識別字 `admin@chinese-training-platform.invalid`，密碼使用管理者已另行提供的值。 | 只使用 Firebase Auth 儲存密碼；不把密碼加入程式碼、報告或 Firestore。 |
-| 3 | 在 Firestore → Data 以管理員的實際 UID 建立 `/users/{adminUid}` 文件。欄位：`schemaVersion: 2`、`role: "admin"`、`username: "admin"`、`displayName: "管理員"`、`createdAt`、`updatedAt`，以及符合 `firestore.rules` 的空 `progress` 物件。 | 管理員角色必須在受保護資料中建立，不能由前端自行取得。 |
+| 3 | 在 Firestore → Data 以管理員的實際 UID 建立 `/users/{adminUid}` 文件。**最小必要欄位是 `role: "admin"`**；`schemaVersion`、顯示名稱與空進度物件只屬管理介面描述資料，並非授權所需。 | 管理員角色必須在受保護資料中建立，不能由前端自行取得。 |
 | 4 | 於本地及 Firebase Rules Playground 重做本文件的測試矩陣。 | 官方文件指出 Rules Playground 適合快速模擬，而 Emulator 適合完整自動化測試。[3] [4] |
 | 5 | 宣布短暫維護時段，先發布 `firestore.rules` 的最終拒絕舊路徑版本，隨即把已驗證的遷移分支合併／發布到 `main`。 | 兩個服務沒有跨產品原子發布。選擇「先封鎖舊公開資料」優先保障學生資料，代價是舊版頁面在 GitHub Pages 建置完成前可能有短暫登入中斷。 |
 | 6 | 在 `https://leunghn-tech.github.io/Primay_P.1-P.6_Chinese-Laguage/` 進行新學生註冊、學生重新登入、題庫進度同步、登出、管理員登入和報表讀取測試。 | 確認正式網站版本與正式規則一致。 |
 | 7 | 驗收後停用 Anonymous。 | 防止日後繼續產生無用途匿名帳戶；不可在第 1–6 步之前停用，避免排錯範圍擴大。 |
+
+## 已完成的生產切換紀錄（2026-08-27）
+
+在管理者明確確認後，以下操作已完成。此紀錄不包含任何密碼、學生名稱、舊帳戶名稱或可存取資料。
+
+| 項目 | 結果 |
+|---|---|
+| Email/Password 供應商 | 已啟用。 |
+| 管理員模型 | 已建立 Firebase Authentication 管理員帳戶；登入畫面名稱維持 `admin`，授權以該帳戶 UID 的 `/users/{uid}` 文件 `role: "admin"` 為準。生產角色文件只保存這個最小必要欄位。 |
+| Firestore Rules | 已發布新版最小權限規則，完全拒絕舊公開學生資料路徑。 |
+| 正式網站 | 安全遷移拉取請求已合併到 `main`，GitHub Pages 已完成建置。 |
+| 管理員驗收 | 正式網站的管理員登入及受控學生清單讀取已成功驗證；現時尚未有新模型學生文件，故清單為 0。 |
+| 未登入者驗收 | 以未登入 Firebase 用戶端請求舊學生資料及新版管理員文件均取得 HTTP 403 / `PERMISSION_DENIED`。 |
+| 匿名登入 | 已停用；既有匿名 Authentication 帳戶未刪除。 |
+| 學生實機註冊 | 未建立人為測試學生，以避免產生不必要的帳戶和學生資料。該流程已由 Firestore Emulator 的規則測試與靜態網站檢查驗證；首次實際學生註冊時，應由管理者依本文件的測試矩陣覆核。 |
 
 > Firebase Authentication 預設最低密碼長度為 6 個字元，並支援在 Console 設定更強的密碼政策。[1] 使用者指定的管理員密碼符合最低長度，但安全強度偏低；完成首次驗收後，應立即改為獨特且更長的密碼，並為 Firebase 專案擁有者的 Google 帳戶啟用多重驗證。
 
