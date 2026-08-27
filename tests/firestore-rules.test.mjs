@@ -63,6 +63,8 @@ const newStudent = testEnv.authenticatedContext('new-student-uid').firestore();
 await assertSucceeds(setDoc(doc(newStudent, 'users', 'new-student-uid'), profile('newstudent')));
 await assertFails(setDoc(doc(newStudent, 'users', 'another-uid'), profile('imposter')));
 await assertFails(setDoc(doc(newStudent, 'users', 'new-student-uid'), profile('newstudent', 'admin')));
+const reservedAdmin = testEnv.authenticatedContext('reserved-admin-uid').firestore();
+await assertFails(setDoc(doc(reservedAdmin, 'users', 'reserved-admin-uid'), profile('admin')));
 
 await assertSucceeds(getDoc(doc(admin, 'users', 'alice-uid')));
 await assertSucceeds(getDocs(collection(admin, 'users')));

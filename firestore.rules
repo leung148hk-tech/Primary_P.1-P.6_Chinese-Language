@@ -21,6 +21,7 @@ service cloud.firestore {
       return value is string
         && value.size() >= 1
         && value.size() <= 15
+        && value != 'admin'
         && value.matches('^[a-z0-9_-]+$');
     }
 
