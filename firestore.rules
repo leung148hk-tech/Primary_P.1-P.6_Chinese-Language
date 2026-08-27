@@ -1,0 +1,88 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // 管理員角色只可由 Firebase Console／受信任的後端建立，
+    // 一般網頁客戶端絕不可自行把 role 改為 admin。
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function validUsername(value) {
+      return value is string
+        && value.size() >= 1
+        && value.size() <= 15
+        && value != 'admin'
+        && value.matches('^[a-z0-9_-]+$');
+    }
+
+    function validDisplayName(value) {
+      return value is string && value.size() >= 1 && value.size() <= 30;
+    }
+
+    function validProgress(progress) {
+      return progress is map
+        && progress.keys().hasOnly(['version', 'raw', 'totalExp', 'badges', 'cats', 'lastUpdated'])
+        && progress.version == 1
+        && progress.raw is map
+        && progress.raw.size() <= 120
+        && progress.totalExp is number
+        && progress.totalExp >= 0
+        && progress.totalExp <= 1000000
+        && progress.badges is int
+        && progress.badges >= 0
+        && progress.badges <= 24
+        && progress.cats is map
+        && progress.cats.keys().hasOnly(['word', 'sent', 'rhet', 'para', 'read', 'listen', 'culture', 'write'])
+        && progress.lastUpdated is string;
+    }
+
+    match /users/{uid} {
+      // 建立學生資料時，只允許登入者為自己的 Firebase Auth UID 建立最小資料集。
+      allow create: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['schemaVersion', 'role', 'username', 'displayName', 'createdAt', 'updatedAt', 'progress'])
+        && request.resource.data.schemaVersion == 2
+        && request.resource.data.role == 'student'
+        && validUsername(request.resource.data.username)
+        && validDisplayName(request.resource.data.displayName)
+        && request.resource.data.createdAt is string
+        && request.resource.data.updatedAt is string
+        && validProgress(request.resource.data.progress);
+
+      // 學生可讀自己的資料；已建立並受規則驗證的管理員可讀單一學生資料。
+      allow get: if isOwner(uid) || isAdmin();
+
+      // 僅管理員可列出學生資料，避免學生枚舉其他帳戶或個人資料。
+      allow list: if isAdmin();
+
+      // 學生只能更新自己的進度與更新時間，不可改變角色、帳號、建立時間或其他欄位。
+      allow update: if isOwner(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['progress', 'updatedAt'])
+        && request.resource.data.updatedAt is string
+        && validProgress(request.resource.data.progress);
+
+      // 任何瀏覽器端帳戶不可刪除學生資料；受控刪除必須由 Firebase Console／受信任後端同步處理。
+      allow delete: if false;
+    }
+
+    // 舊版資料在完成受控資料保留／刪除流程前保留於原處，
+    // 但不能再被網頁客戶端讀取或寫入，尤其不能暴露歷史密碼欄位。
+    match /artifacts/{appId}/public/data/students/{studentId} {
+      allow read, write: if false;
+    }
+
+    // 預設拒絕所有未明確授權的路徑。
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
