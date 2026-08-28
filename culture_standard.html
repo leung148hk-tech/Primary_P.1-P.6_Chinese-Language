@@ -357,7 +357,7 @@
         }
 
         function cC(title, text, qs) {
-            return { title: title, text: text, qs: qs.map(q => ({ q: q[0], opts: q[1], ans: q[2], exp: q[3], type: q[4] || 'mc' })) };
+            return { title: title, text: text, qs: qs.map(q => ({ type: q[0] || 'mc', q: q[1], opts: q[2], ans: q[3], exp: q[4] })) };
         }
 
         // 📜 10首全新中階古詩 (每篇 5 題)
